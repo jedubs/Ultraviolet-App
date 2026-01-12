@@ -26,6 +26,28 @@ const fastify = Fastify({
 	},
 });
 
+// --- STEALTH CLOAK START ---
+// This hook injects the Google Drive script into every HTML page sent by the server
+fastify.addHook('onSend', async (request, reply, payload) => {
+    // Only inject if the content is HTML and contains a <head> tag
+    if (reply.getHeader('content-type')?.includes('text/html') && typeof payload === 'string') {
+        const cloakScript = `
+        <script>
+            setInterval(() => {
+                document.title = "My Drive - Google Drive";
+                let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+                link.type = 'image/x-icon'; 
+                link.rel = 'shortcut icon';
+                link.href = 'https://ssl.gstatic.com/docs/doclist/images/infinite_drive_2023q4.ico';
+                document.getElementsByTagName('head')[0].appendChild(link);
+            }, 100);
+        </script>`;
+        return payload.replace('<head>', '<head>' + cloakScript);
+    }
+    return payload;
+});
+// --- STEALTH CLOAK END ---
+
 fastify.register(fastifyStatic, {
 	root: publicPath,
 	decorateReply: true,
@@ -55,9 +77,6 @@ fastify.register(fastifyStatic, {
 
 fastify.server.on("listening", () => {
 	const address = fastify.server.address();
-
-	// by default we are listening on 0.0.0.0 (every interface)
-	// we just need to list a few
 	console.log("Listening on:");
 	console.log(`\thttp://localhost:${address.port}`);
 	console.log(`\thttp://${hostname()}:${address.port}`);
@@ -78,7 +97,6 @@ function shutdown() {
 }
 
 let port = parseInt(process.env.PORT || "");
-
 if (isNaN(port)) port = 8080;
 
 fastify.listen({
